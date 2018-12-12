@@ -6,7 +6,8 @@ function main()
         solve021 solve022;
         solve031 solve032;
         solve041 solve042;
-        solve051 solve052
+        solve051 solve052;
+        solve061 solve062
     ]
 
     if length(ARGS) != 3

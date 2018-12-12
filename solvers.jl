@@ -260,3 +260,79 @@ function strip_polymer(polymer, c)
     # println(remaining)
     return remaining
 end
+
+function solve061(filename)
+    point_strs = readlines(filename)
+    points = transpose(parse.(Int, hcat(split.(point_strs, ",")...)))
+    # display(points)
+    dist = Array{Int}(undef, size(points, 1))
+    grid = zeros(Int, maximum(points[:,1])+2, maximum(points[:,2])+2)
+    grid_x_axis, grid_y_axis = axes(grid)
+    for ix in grid_x_axis, iy in grid_y_axis
+        x, y = ix-1, iy-1
+        for i in axes(points,1)
+            dist[i] = manhattan_dist([x,y], points[i,:])
+        end
+        # Leave ties unclaimed.
+        claimed = argmin(dist)
+        if sum(dist .== dist[claimed]) > 1
+            continue
+        end
+        grid[ix, iy] = claimed
+    end
+    # display(grid)
+
+    # Look at boundary to find unbounded point regions.
+    bounded = fill(true, size(points, 1))
+    for ix in grid_x_axis
+        iymin, iymax = firstindex(grid, 2), lastindex(grid, 2)
+        if grid[ix, iymin] > 0
+            bounded[grid[ix, iymin]] = false
+        end
+        if grid[ix, iymax] > 0
+            bounded[grid[ix, iymax]] = false
+        end
+    end
+    for iy in grid_y_axis
+        ixmin, ixmax = firstindex(grid, 1), lastindex(grid, 1)
+        if grid[ixmin, iy] > 0
+            bounded[grid[ixmin, iy]] = false
+        end
+        if grid[ixmax, iy] > 0
+            bounded[grid[ixmax, iy]] = false
+        end
+    end
+    # display(bounded)
+
+    areas = Array{Int}(undef, size(points, 1))
+    for i in axes(points, 1)
+        areas[i] = sum(grid .== i)
+    end
+    largest_bounded_area = maximum(areas[bounded])
+    return largest_bounded_area
+end
+
+function manhattan_dist(x1, x2)
+    abs(x1[1]-x2[1]) + abs(x1[2]-x2[2])
+end
+
+function solve062(filename)
+    MAX_DIST = 10000
+    point_strs = readlines(filename)
+    points = transpose(parse.(Int, hcat(split.(point_strs, ",")...)))
+    # display(points)
+    dist = Array{Int}(undef, size(points, 1))
+    grid = zeros(Int, maximum(points[:,1])+2, maximum(points[:,2])+2)
+    grid_x_axis, grid_y_axis = axes(grid)
+    for ix in grid_x_axis, iy in grid_y_axis
+        x, y = ix-1, iy-1
+        for i in axes(points,1)
+            dist[i] = manhattan_dist([x,y], points[i,:])
+        end
+        if sum(dist) < MAX_DIST
+            grid[ix, iy] = 1
+        end
+    end
+    # display(grid)
+    return sum(grid)
+end
