@@ -324,7 +324,7 @@ function solve062(filename)
     dist = Array{Int}(undef, size(points, 1))
     grid = zeros(Int, maximum(points[:,1])+2, maximum(points[:,2])+2)
     grid_x_axis, grid_y_axis = axes(grid)
-    for ix in grid_x_axis, iy in grid_y_axis
+    for iy in grid_y_axis, ix in grid_x_axis
         x, y = ix-1, iy-1
         for i in axes(points,1)
             dist[i] = manhattan_dist([x,y], points[i,:])
@@ -335,4 +335,119 @@ function solve062(filename)
     end
     # display(grid)
     return sum(grid)
+end
+
+function solve071(filename)
+    nodes, pred_dag, succ_dag = open(build_dag, filename)
+    next_nodes = binary_minheap(Char)
+    remaining_nodes = Set(nodes)
+    completed_nodes = fill('0', length(remaining_nodes))
+    schedule_nodes!(next_nodes, remaining_nodes, pred_dag)
+    # display(pred_dag)
+    # display(next_nodes)
+    # display(remaining_nodes)
+    # display(completed_nodes)
+    for i in axes(completed_nodes, 1)
+        n = pop!(next_nodes)
+        completed_nodes[i] = n
+        clear_pred!(pred_dag, n)
+        schedule_nodes!(next_nodes, remaining_nodes, pred_dag)
+        # display(pred_dag)
+        # display(next_nodes)
+        # display(remaining_nodes)
+        # display(completed_nodes)
+    end
+    return string(completed_nodes...)
+end
+
+function schedule_nodes!(next_nodes, remaining_nodes, pred_dag)
+    # Find workable nodes and queue them up.
+    for n in copy(remaining_nodes)
+        if length(pred_dag[n]) == 0
+            push!(next_nodes, n)
+            pop!(remaining_nodes, n)
+        end
+    end
+end
+
+function clear_pred!(pred_dag, n)
+    for arcset in pred_dag
+        orig, pred = arcset
+        if n in pred
+            pop!(pred, n)
+        end
+    end
+end
+
+function build_dag(input)
+    nodes = Set{Char}()
+    pred_dag = Dict{Char, Set{Char}}()
+    succ_dag = Dict{Char, Set{Char}}()
+    for line = eachline(input)
+        step_re = r"Step ([A-Z]).*step ([A-Z]).*"
+        pred, succ = match(step_re, line).captures
+        pred, succ = pred[1], succ[1]  # String to Char.
+        if haskey(pred_dag, succ)
+            pred_dag[succ] = push!(pred_dag[succ], pred)
+        else
+            pred_dag[succ] = Set{Char}([pred])
+        end
+        if haskey(succ_dag, pred)
+            succ_dag[pred] = push!(succ_dag[pred], succ)
+        else
+            succ_dag[pred] = Set{Char}([succ])
+        end
+        push!(nodes, pred)
+        push!(nodes, succ)
+    end
+    for n in nodes
+        if !haskey(pred_dag, n); pred_dag[n] = Set{Char}(); end
+        if !haskey(succ_dag, n); succ_dag[n] = Set{Char}(); end
+    end
+    return nodes, pred_dag, succ_dag
+end
+
+function solve072(filename)
+    N_WORKERS = 5
+    TIME_OFFSET = 60
+    CHAR_OFFSET = Int('A') - 1
+    time_required = [Int(c) - CHAR_OFFSET + TIME_OFFSET for c in 'A':'Z']
+    nodes, pred_dag, succ_dag = open(build_dag, filename)
+    next_nodes = binary_minheap(Char)
+    available_workers = Set(1:N_WORKERS)
+    next_workers = PriorityQueue{Tuple{Int, Char, Int}, Int}()
+    remaining_nodes = Set(nodes)
+    completed_nodes = fill('0', length(remaining_nodes))
+    schedule_nodes!(next_nodes, remaining_nodes, pred_dag)
+    t = 0
+    schedule_workers!(next_workers, next_nodes, available_workers, t, time_required)
+    # display(pred_dag)
+    # display(next_workers)
+    # display(remaining_nodes)
+    # display(completed_nodes)
+    for i in axes(completed_nodes, 1)
+        w, n, tf = dequeue!(next_workers)
+        completed_nodes[i] = n
+        push!(available_workers, w)
+        t = tf
+        clear_pred!(pred_dag, n)
+        schedule_nodes!(next_nodes, remaining_nodes, pred_dag)
+        schedule_workers!(next_workers, next_nodes, available_workers, t, time_required)
+        # display(pred_dag)
+        # display(next_workers)
+        # display(remaining_nodes)
+        # display(completed_nodes)
+    end
+    return string(completed_nodes...), t
+end
+
+function schedule_workers!(next_workers, next_nodes, available_workers, t, time_required)
+    CHAR_OFFSET = Int('A') - 1
+    while length(next_nodes) > 0 && length(available_workers) > 0
+        n = pop!(next_nodes)
+        w = pop!(available_workers)
+        i = Int(n) - CHAR_OFFSET
+        dt = time_required[i]
+        enqueue!(next_workers, (w, n, t+dt)=>t+dt)
+    end
 end
