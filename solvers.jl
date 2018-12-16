@@ -1,6 +1,11 @@
 
 using DataStructures
 
+import Base.isequal
+import Base.(==)
+import Base.setindex!
+import Base.getindex
+
 function solve011(filename)
     println(filename)
     basefreq = 0
@@ -449,5 +454,127 @@ function schedule_workers!(next_workers, next_nodes, available_workers, t, time_
         i = Int(n) - CHAR_OFFSET
         dt = time_required[i]
         enqueue!(next_workers, (w, n, t+dt)=>t+dt)
+    end
+end
+
+function solve081(filename)
+    CHILD = 1
+    METADATA = 2
+    HEADER1 = 3
+    HEADER2 = 4
+    inputs = readline(filename)
+    tot::Int = 0
+    next_mode = Stack{Int}()
+    push!(next_mode, HEADER1)
+    local mode::Int = 0
+    n_child::Int = 0
+    n_metadata::Int = 0
+    for c in split(inputs)
+        mode = pop!(next_mode)
+        val = parse(Int, c)
+        # println("Pre ", mode, " ", val, " ", next_mode)
+        if mode == HEADER1
+            # Reading number of children
+            n_child = val
+            push!(next_mode, HEADER2)
+        elseif mode == HEADER2
+            # Reading number of metadata
+            n_metadata = val
+            if n_metadata > 0
+                push!(next_mode, repeat([METADATA], n_metadata)...)
+            end
+            if n_child > 0
+                push!(next_mode, repeat([HEADER1], n_child)...)
+            end
+        elseif mode == METADATA
+            tot += val
+        end
+        # println("Post ", tot, " ", next_mode)
+    end
+    return tot
+end
+
+mutable struct Node{T}
+    val::T
+    children::Array{T,1}
+    metadata::Array{T,1}
+end
+
+function solve082(filename)
+    CHILD = 1
+    METADATA = 2
+    HEADER1 = 3
+    HEADER2 = 4
+    inputs = readline(filename)
+    tot::Int = 0
+    tree = Node{Int}[]
+    push!(tree, Node{Int}(-1, [], []))
+    max_node_idx::Int = 1
+    next_mode = Stack{Tuple{Int, Int, Int}}()
+    push!(next_mode, (HEADER1, 0, max_node_idx))
+    local mode::Int = 0
+    n_child::Int = 0
+    n_metadata::Int = 0
+    for c in split(inputs)
+        mode, parent, node_idx = pop!(next_mode)
+        val = parse(Int, c)
+        # println("Pre ", mode, " ", parent, " ", next_mode)
+        # display(tree); println()
+        if mode == HEADER1
+            # Reading number of children
+            n_child = val
+            push!(next_mode, (HEADER2, parent, node_idx))
+        elseif mode == HEADER2
+            # Reading number of metadata
+            n_metadata = val
+            if n_metadata > 0
+                push!(next_mode, repeat([(METADATA, node_idx, 0)], n_metadata)...)
+            end
+            if n_child > 0
+                push!(next_mode, [(HEADER1, node_idx, max_node_idx + i) for i in n_child:-1:1]...)
+                for i in 1:n_child
+                    push!(tree, Node{Int}(-1, [], []))
+                end
+                max_node_idx += n_child
+            end
+            if parent > 0
+                parent_node = tree[parent]
+                push!(parent_node.children, node_idx)
+            end
+        elseif mode == METADATA
+            parent_node = tree[parent]
+            push!(parent_node.metadata, val)
+        end
+        # println("Post ", parent, " ", next_mode)
+        # display(tree); println()
+    end
+
+    setval!(tree, tree[1])
+    display(tree); println()
+    return tree[1].val
+end
+
+
+function setval!(tree::Array{Node{T},1}, n::Node{T}) where T<:Integer
+    if n.val >= 0
+        return
+    elseif length(n.children) == 0
+        n.val = sum(n.metadata)
+    else
+        vals = similar(n.children)
+        for tup in enumerate(n.children)
+            idx, i = tup
+            c = tree[i]
+            if c.val < 0
+                setval!(tree, c)
+            end
+            vals[idx] = c.val
+        end
+        n.val = 0
+        for m in n.metadata
+            if m <= length(n.children)
+                n.val += vals[m]
+            end
+        end
     end
 end
