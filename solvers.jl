@@ -1,10 +1,21 @@
+push!(LOAD_PATH, pwd())
 
+using OffsetArrays
 using DataStructures
+using Circular
 
-import Base.isequal
-import Base.(==)
-import Base.setindex!
-import Base.getindex
+
+
+
+function Base.insert!(a::OffsetArray{T, 1, Array{T, 1}}, i::Integer, v::T) where T
+    j = 1 + i - firstindex(a)
+    insert!(a.parent, j, v)
+end
+
+function Base.splice!(a::OffsetArray{T, 1, Array{T, 1}}, i::Integer) where T
+    j = 1 + i - firstindex(a)
+    splice!(a.parent, j)
+end
 
 function solve011(filename)
     println(filename)
@@ -16,6 +27,7 @@ function solve011(filename)
             basefreq += change
         end
     end
+
     return basefreq
 end
 
@@ -577,4 +589,96 @@ function setval!(tree::Array{Node{T},1}, n::Node{T}) where T<:Integer
             end
         end
     end
+end
+
+function solve091(args...)
+    if length(args) == 1
+        re = r"([0-9]*) players; last marble is worth ([0-9]*) points"
+        input_str = string(open(readchomp, args[1]))
+        println(input_str)
+        input_m = match(re, input_str)
+        show(input_m); println()
+        if input_m !== nothing
+            input = input_m.captures
+        else
+            error("Invalid input file.")
+        end
+    elseif length(args) == 2
+        input = args
+    else
+        error("Must provide at least two extra arguments: N_PLAYERS and MAX_MARBLE")
+    end
+
+    n_players, max_marble = map(x -> parse(Int, x), input)
+    # Increasing index is clockwise.
+    marbles = OffsetArray{Int}(undef, 0:0)
+    marbles[0] = 0
+    current_marble_loc = 0
+    current_player = 1
+    scores = zeros(Int, n_players)
+    for m = 1:max_marble
+        if mod(m, 23) ≠ 0
+            # Insert marble between marbles 1 and 2 clockwise from current.
+            i = mod(current_marble_loc + 2, length(marbles))
+            insert!(marbles, i, m)
+            current_marble_loc = i
+        else
+            # Score marble and remove.
+            scores[current_player] += m
+            i_remove = mod(current_marble_loc - 7, length(marbles))
+            scores[current_player] += marbles[i_remove]
+            splice!(marbles, i_remove)
+            current_marble_loc = i_remove
+        end
+        # println(current_player, ", ", m, ": ", circshift(marbles, 1))
+        current_player = mod(current_player + 1, n_players+1)
+        (current_player == 0) && (current_player = 1)
+    end
+
+    return maximum(scores)
+end
+
+function solve092(args...)
+    println("solve092 ", args)
+    if length(args) == 1
+        re = r"([0-9]*) players; last marble is worth ([0-9]*) points"
+        input_str = string(open(readchomp, args[1]))
+        println(input_str)
+        input_m = match(re, input_str)
+        show(input_m); println()
+        if input_m !== nothing
+            input = input_m.captures
+        else
+            error("Invalid input file.")
+        end
+    elseif length(args) == 2
+        input = args
+    else
+        error("Must provide at least two extra arguments: N_PLAYERS and MAX_MARBLE")
+    end
+
+    n_players, max_marble = map(x -> parse(Int, x), input)
+    # Increasing index is clockwise.
+    marbles = circular_list(0)
+    current_player = 1
+    scores = zeros(Int, n_players)
+    println("Progress: (. = 10000 marbles)")
+    for m = 1:max_marble
+        mod(m, 10_000) == 0 && print(".")
+        if mod(m, 23) ≠ 0
+            # Insert marble between marbles 1 and 2 clockwise from current.
+            marbles = insertafter!(next(marbles), m)
+        else
+            # Score marble and remove.
+            scores[current_player] += m
+            for i = 1:7; marbles = prev(marbles); end
+            scores[current_player] += value(marbles)
+            removeleftshift!(marbles)
+        end
+        # println(current_player, ", ", m, ": ", circshift(marbles, 1))
+        current_player = mod(current_player + 1, n_players+1)
+        (current_player == 0) && (current_player = 1)
+    end
+    println()
+    return maximum(scores)
 end

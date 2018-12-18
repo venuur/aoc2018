@@ -9,20 +9,22 @@ function main()
         solve051 solve052;
         solve061 solve062;
         solve071 solve072;
-        solve081 solve082
+        solve081 solve082;
+        solve091 solve092;
     ]
 
-    if length(ARGS) != 3
-        println("ARGS[1]  Day 1-25.")
-        println("ARGS[2]  Part 1 or 2.")
-        println("ARGS[3]  Name of input file to solve.")
+    I_EXTRA_ARG = 3
+    if length(ARGS) < I_EXTRA_ARG
+        println("ARGS[1]    Day 1-25.")
+        println("ARGS[2]    Part 1 or 2.")
+        println("ARGS[$I_EXTRA_ARG:]   Args passed to solver, meaning is solver dependent.")
         println("")
         exit()
     end
 
-    day, part, filename = ARGS
-    day = parse(Int, day)
-    part = parse(Int, part)
+    day = parse(Int, ARGS[1])
+    part = parse(Int, ARGS[2])
+
     if !(firstindex(solvers) <= day <= lastindex(solvers))
         println("Day $day not implemented yet.")
         exit()
@@ -31,13 +33,14 @@ function main()
         exit()
     end
 
+    println("ARGS: ", ARGS)
     solve = solvers[day, part]
-    result = solve(filename)
-    if result === nothing
-        println("Solve found nothing.")
-    else
-        println(result)
-    end
+
+    solver_args = length(ARGS) >= I_EXTRA_ARG ? ARGS[I_EXTRA_ARG:end] : ()
+    println("Solver Args: ", solver_args)
+
+    result = solve(solver_args...)
+    result === nothing ? println("Solve found nothing.") : println(result)
 end
 
 main()
